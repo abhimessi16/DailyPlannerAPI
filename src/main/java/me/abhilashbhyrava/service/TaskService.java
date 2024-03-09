@@ -7,7 +7,15 @@ import me.abhilashbhyrava.model.TimeSlot;
 import me.abhilashbhyrava.repository.PlannerRepository;
 import me.abhilashbhyrava.repository.TaskRepository;
 import me.abhilashbhyrava.repository.TimeSlotRepository;
+import org.apache.coyote.Response;
+import org.json.JSONObject;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,17 +52,23 @@ public class TaskService {
 
     }
 
-    public Task addTask(String username, int timeSlot, Task task) {
+    public int addTask(String username, int timeSlot, Task task, String accessToken) {
         Planner planner = plannerRepository.findByUsername(username).orElse(null);
 
         if(planner == null)
-            return null;
+            return -1;
 
+        var calendarService = new GoogleCalendarService(accessToken);
+        calendarService.addTask(timeSlot, task);
+
+        // is saving in repo required??
+        // yes, unless I have selected valid cascade type in Entity class for Timeslot
         TimeSlot slot = planner.getTimeSlots().get(timeSlot - planner.getStartTime());
         Task taskToAdd = taskRepository.save(task);
         slot.getTasks().add(taskToAdd);
         timeSlotRepository.save(slot);
-        return taskToAdd;
+
+        return taskToAdd.getTaskId();
     }
 
     public boolean deleteTask(String username, int timeSlot, int id) {

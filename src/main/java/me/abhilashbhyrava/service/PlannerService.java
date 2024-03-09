@@ -2,14 +2,18 @@ package me.abhilashbhyrava.service;
 
 import lombok.RequiredArgsConstructor;
 import me.abhilashbhyrava.model.Planner;
+import me.abhilashbhyrava.model.Task;
 import me.abhilashbhyrava.model.TimeSlot;
 import me.abhilashbhyrava.repository.PlannerRepository;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.sql.Time;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -17,6 +21,7 @@ public class PlannerService {
 
     private final PlannerRepository plannerRepository;
     private final TimeSlotService timeSlotService;
+    private final TaskService taskService;
 
     public Planner getPlanner(String username) {
         return plannerRepository.findByUsername(username).orElse(null);
@@ -24,6 +29,10 @@ public class PlannerService {
 
     public List<Planner> getPlanners(){
         return plannerRepository.findAll();
+    }
+
+    public List<String> getPlannerNames(){
+        return getPlanners().stream().map(Planner::getUsername).collect(Collectors.toList());
     }
 
     public boolean addPlanner(Planner plannerToAdd) {
@@ -42,7 +51,7 @@ public class PlannerService {
 
         plannerToAdd.setTimeSlots(new ArrayList<>());
 
-        for(int timeSlot = plannerToAdd.getStartTime(); timeSlot < plannerToAdd.getEndTime(); timeSlot++){
+        for (int timeSlot = plannerToAdd.getStartTime(); timeSlot < plannerToAdd.getEndTime(); timeSlot++) {
 
             TimeSlot slot = TimeSlot.builder()
                     .startTime(timeSlot)
@@ -82,11 +91,15 @@ public class PlannerService {
         // getting the planner to update
         Planner oldPlanner = plannerToUpdate.orElseThrow();
 
+        System.out.println(oldPlanner);
+
         oldPlanner = updateTimeSlots(
                 oldPlanner,
                 updatePlanner.getStartTime(),
                 updatePlanner.getEndTime()
         );
+
+        System.out.println(oldPlanner);
 
         plannerRepository.save(oldPlanner);
         return 2;
@@ -125,7 +138,6 @@ public class PlannerService {
 
         // for each updated slot time
         for(int slot = startTime; slot < endTime; slot++){
-
             // check if the time slot existed earlier and add it
             if(slot >= planner.getStartTime() && planner.getEndTime() > slot) {
                 planner.getTimeSlots().add(timeSlots.get(slot - planner.getStartTime()));
@@ -144,4 +156,36 @@ public class PlannerService {
         return planner;
     }
 
+    public void syncWithGoogleCalendar(String accessToken, String username) {
+        // first check if current user has logged in using google account
+//        if(SecurityContextHolder.getContext().getAuthentication())
+
+
+        List<TimeSlot> timeSlots = timeSlotService.getAllTimeSlots(username);
+
+        var calendarService = new GoogleCalendarService(accessToken);
+
+        for(TimeSlot timeSlot : timeSlots){
+            System.out.println(timeSlot.getId());
+
+            List<Task> addTasks = calendarService.syncTasksToAdd(timeSlot);
+
+            addTasks.forEach(task -> timeSlot.getTasks().add(taskService.addTask(task)));
+            timeSlotService.addTimeSlot(timeSlot);
+
+            System.out.println(timeSlot);
+
+            Set<Integer> removeTasks = calendarService.syncTasksToRemove(timeSlot);
+            List<Task> syncedTasks = new ArrayList<>();
+
+//            timeSlot.setTasks(syncedTasks);
+            for(Task task : timeSlot.getTasks()){
+                if(!removeTasks.contains(task.getTaskId()))
+                    syncedTasks.add(task);
+            }
+            timeSlot.setTasks(syncedTasks);
+            timeSlotService.addTimeSlot(timeSlot);
+        }
+
+    }
 }

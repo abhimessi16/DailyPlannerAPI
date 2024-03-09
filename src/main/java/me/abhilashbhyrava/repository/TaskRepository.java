@@ -3,8 +3,10 @@ package me.abhilashbhyrava.repository;
 import me.abhilashbhyrava.model.Task;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Optional;
+
 public interface TaskRepository extends JpaRepository<Task, Integer> {
 
-    Task findByTaskName(String taskName);
+    Optional<Task> findByTaskName(String taskName);
     void deleteByTaskName(String taskName);
 }

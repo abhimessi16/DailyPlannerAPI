@@ -2,12 +2,21 @@ package me.abhilashbhyrava.controller;
 
 import lombok.RequiredArgsConstructor;
 import me.abhilashbhyrava.model.Planner;
+import me.abhilashbhyrava.service.GoogleCalendarService;
 import me.abhilashbhyrava.service.PlannerService;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
+import org.springframework.security.oauth2.client.annotation.RegisteredOAuth2AuthorizedClient;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/planner")
@@ -15,6 +24,12 @@ import java.util.List;
 public class PlannerController {
 
     private final PlannerService plannerService;
+
+    // test endpoint, checking if oauth2 login is successful
+    @GetMapping("/user")
+    public Map<String, Object> user(@AuthenticationPrincipal OAuth2User principal) {
+        return Collections.singletonMap("name", principal.getAttribute("name"));
+    }
 
     @GetMapping("/{username}")
     public ResponseEntity<Planner> getPlanner(@PathVariable String username){
@@ -31,8 +46,8 @@ public class PlannerController {
     }
 
     @GetMapping("/all")
-    public ResponseEntity<List<Planner>> allPlanners(){
-        return ResponseEntity.ok(plannerService.getPlanners());
+    public ResponseEntity<List<String>> allPlanners(){
+        return ResponseEntity.ok(plannerService.getPlannerNames());
     }
 
     @PostMapping("/add")
@@ -47,8 +62,8 @@ public class PlannerController {
                 .body(
                         plannerToAdd.getUsername()
                                 .concat(plannerAdded ? " is added!" : " is already present!"
-                )
-        );
+                                )
+                );
     }
 
     @DeleteMapping("/delete/{username}")
@@ -63,7 +78,7 @@ public class PlannerController {
                 .body(
                         username.concat(
                                 plannerRemoved ? " is removed!"
-                                : " doesn't exist!")
+                                        : " doesn't exist!")
                 );
     }
 
@@ -85,7 +100,7 @@ public class PlannerController {
     }
 
     @GetMapping("/{username}/status")
-    public ResponseEntity<String> plannerStatus(@PathVariable String username){
+    public ResponseEntity<String> plannerStatus(@PathVariable String username) throws JSONException {
 
         // [0] -> total tasks, [1] -> finished tasks
         int[] taskCounts = plannerService.getPlannerStatus(username);
@@ -97,10 +112,23 @@ public class PlannerController {
                     );
         }
 
+        JSONObject obj = new JSONObject();
+        obj.put("All-Task-Count", taskCounts[0]);
+        obj.put("All-Task-Finish-Count", taskCounts[1]);
+
         return ResponseEntity.ok()
-                .header("All-Task-Count", String.valueOf(taskCounts[0]))
-                .header("All-Finish-Task-Count", String.valueOf(taskCounts[1]))
-                .body("Details in header!");
+                .body(obj.toString());
+    }
+
+    @GetMapping("/{username}/sync")
+    public ResponseEntity<String> syncGoogleCalendar(@PathVariable String username
+            , @RegisteredOAuth2AuthorizedClient("google")OAuth2AuthorizedClient client){
+
+        // for now let's assume this works and that Google OAuth2 is the only way for authentication
+        String accessToken = client.getAccessToken().getTokenValue();
+        plannerService.syncWithGoogleCalendar(accessToken, username);
+
+        return ResponseEntity.ok("Working!");
     }
 
 }

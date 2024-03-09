@@ -13,6 +13,7 @@ import java.util.List;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
+@ToString
 public class TimeSlot {
 
     @Id
@@ -31,7 +32,7 @@ public class TimeSlot {
     // if the above thought is valid then this relation
     // will become many-to-many
     @OneToMany
-    @Cascade(CascadeType.PERSIST)
+    @Cascade({ CascadeType.PERSIST, CascadeType.REMOVE })
     private List<Task> tasks;
 
     public Long getFinishCount(){

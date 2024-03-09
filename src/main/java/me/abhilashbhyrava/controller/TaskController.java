@@ -5,9 +5,12 @@ import me.abhilashbhyrava.model.Task;
 import me.abhilashbhyrava.service.TaskService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
+import org.springframework.security.oauth2.client.annotation.RegisteredOAuth2AuthorizedClient;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/planner/{username}/time-slot/{timeslot}/task")
@@ -32,10 +35,18 @@ public class TaskController {
     }
 
     @PostMapping("/add")
-    public ResponseEntity<Task> addTask(@PathVariable String username
-            , @PathVariable(name = "timeslot") int timeSlot
-            , @RequestBody Task task){
-        return ResponseEntity.ok(taskService.addTask(username, timeSlot, task));
+    public ResponseEntity<Integer> addTask(
+            @PathVariable String username,
+            @PathVariable(name = "timeslot") int timeSlot,
+            @RequestBody Task task,
+            @RegisteredOAuth2AuthorizedClient("google")OAuth2AuthorizedClient client){
+
+        String accessToken = client.getAccessToken().getTokenValue();
+
+        int taskAdded = taskService.addTask(username, timeSlot, task, accessToken);
+        return ResponseEntity
+                .status(taskAdded == -1 ? HttpStatus.BAD_REQUEST : HttpStatus.ACCEPTED)
+                .body(taskAdded);
     }
 
     @DeleteMapping("/delete/{id}")

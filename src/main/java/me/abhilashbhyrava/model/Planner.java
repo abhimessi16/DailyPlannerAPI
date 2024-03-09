@@ -13,6 +13,7 @@ import java.util.List;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
+@ToString
 public class Planner {
 
     @Id
@@ -26,7 +27,7 @@ public class Planner {
     private Integer endTime;
 
     @OneToMany
-    @Cascade(CascadeType.PERSIST)
+    @Cascade({ CascadeType.PERSIST, CascadeType.REMOVE })
     private List<TimeSlot> timeSlots;
 
 }

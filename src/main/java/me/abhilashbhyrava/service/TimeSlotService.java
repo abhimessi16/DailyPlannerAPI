@@ -21,14 +21,18 @@ public class TimeSlotService {
     private final TaskService taskService;
     private final PlannerRepository plannerRepository;
 
+    public TimeSlot addTimeSlot(TimeSlot timeSlot){
+        return timeSlotRepository.save(timeSlot);
+    }
+
     public TimeSlot addTimeSlot(int startTime, List<Task> tasks){
         List<Task> addedTasks = taskService.addAllTasks(tasks);
         return  timeSlotRepository
                 .save(
-                    TimeSlot.builder()
-                    .startTime(startTime)
-                    .tasks(addedTasks)
-                    .build()
+                        TimeSlot.builder()
+                                .startTime(startTime)
+                                .tasks(addedTasks)
+                                .build()
                 );
     }
 
@@ -55,6 +59,6 @@ public class TimeSlotService {
 
         // there's so much to learn
         // i didn't even think of mapping!
-        return planner.map(Planner::getTimeSlots).orElse(null);
+        return planner.map(Planner::getTimeSlots).orElse(new ArrayList<>());
     }
 }
